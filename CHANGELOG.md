@@ -19,13 +19,17 @@ commits, ramas o pull requests visibles en GitHub.
   datos de conexión entregados por el curso.
 - **Evidencia inicial:** `.gitignore`, `README.md` y `CHANGELOG.md`.
 
-## [Pendiente] — Semana 2: modelo y documentación
+## [2026-09-06] — Semana 2: modelo y documentación
 
-- **Objetivo:** cerrar el ERD, los supuestos y la transformación al modelo lógico.
-- **Tareas:** revisar el diccionario de datos y validar las cardinalidades.
+- **Objetivo:** documentar el modelo inicial y su evolución futura.
+- **Tareas:** cerrar el ERD, los supuestos, la transformación al modelo lógico, el
+  diccionario de datos, la evaluación crítica y la matriz de trazabilidad.
 - **Responsable:** Andrés Gómez.
 - **Rama:** `feature/modelo-documental`.
-- **Dificultades:** registrar aquí cualquier decisión pendiente del profesor o del equipo.
+- **Dificultades:** aún falta ejecutar y validar los scripts en el servidor Oracle del
+  curso.
+- **Evidencia:** `docs/documento_tecnico.md`, `docs/algebra_relacional.md` y
+  `docs/matriz_rubrica.md`.
 
 ## [Pendiente] — Semana 3: DDL e integridad
 
