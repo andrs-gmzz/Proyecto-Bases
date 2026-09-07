@@ -129,6 +129,6 @@ git push -u origin main
 | 5 | Consultas | Implementar y validar las quince consultas | Andrés Gómez,Andrea chaparro| `sql/06_consultas.sql` |
 | 6 | DML y privilegios | Probar ciclo de vida, errores, borrados y roles | Andrés Gómez | `sql/04_dml_pruebas.sql`, `sql/05_privilegios.sql` |
 | 7 | Revisión | Ejecutar todo en el servidor, corregir inconsistencias y capturar evidencias | Andrés Gómez | capturas/resultados de SQL Developer |
-| 8 | Entrega | Revisar rúbrica, actualizar changelog y preparar sustentación | Andrés Gómez | versión final y pull request |
+| 8 | Entrega | Revisar rúbrica, actualizar changelog y preparar sustentación | Andrés Gómez, Andrea chaparro | versión final y pull request |
 
 Las semanas y actividades se deben ajustar a las fechas oficiales publicadas por el curso.
