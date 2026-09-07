@@ -13,7 +13,7 @@ commits, ramas o pull requests visibles en GitHub.
   - Preparación local del primer borrador técnico y de los scripts, que se publicarán en
     avances posteriores.
   - Registro del cronograma y del flujo de trabajo Git en `README.md`.
-- **Responsable:** Andrés Gómez.
+- **Responsable:** Andrés Gómez
 - **Rama:** `main` (preparación inicial).
 - **Dificultades:** todavía falta ejecutar la entrega en el servidor y completar los
   datos de conexión entregados por el curso.
