@@ -4,7 +4,7 @@ Sistema de información para la gestión de una Copa Mundial de la FIFA.
 
 ## Información del equipo
 
-- Integrante: Andrés Gómez
+- Integrante: Andrés Gómez,Andrea chaparro
 - Curso: Bases de Datos
 - Entrega: 1 — Modelo relacional, SQL e integridad sobre el modelo inicial
 - Motor: Oracle Database
@@ -122,11 +122,11 @@ git push -u origin main
 
 | Semana | Hito | Actividad | Responsable | Evidencia |
 |---|---|---|---|---|
-| 1 | Comprensión del problema | Revisar enunciado, rúbrica y modelo inicial | Andrés Gómez | `CHANGELOG.md`, documentación inicial |
+| 1 | Comprensión del problema | Revisar enunciado, rúbrica y modelo inicial | Andrés Gómez,Andrea chaparro | `CHANGELOG.md`, documentación inicial |
 | 2 | Modelo | Elaborar ERD, supuestos y modelo lógico | Andrés Gómez | `docs/documento_tecnico.md` |
-| 3 | Integridad | Implementar DDL, claves, restricciones y triggers | Andrés Gómez | `sql/01_ddl.sql` |
-| 4 | Datos y vistas | Cargar dataset sintético y crear cinco vistas | Andrés Gómez | `sql/02_datos_prueba.sql`, `sql/03_vistas.sql` |
-| 5 | Consultas | Implementar y validar las quince consultas | Andrés Gómez | `sql/06_consultas.sql` |
+| 3 | Integridad | Implementar DDL, claves, restricciones y triggers | Andrés Gómez,Andrea chaparro | `sql/01_ddl.sql` |
+| 4 | Datos y vistas | Cargar dataset sintético y crear cinco vistas | Andrés Gómez,Andrea chaparro | `sql/02_datos_prueba.sql`, `sql/03_vistas.sql` |
+| 5 | Consultas | Implementar y validar las quince consultas | Andrés Gómez,Andrea chaparro| `sql/06_consultas.sql` |
 | 6 | DML y privilegios | Probar ciclo de vida, errores, borrados y roles | Andrés Gómez | `sql/04_dml_pruebas.sql`, `sql/05_privilegios.sql` |
 | 7 | Revisión | Ejecutar todo en el servidor, corregir inconsistencias y capturar evidencias | Andrés Gómez | capturas/resultados de SQL Developer |
 | 8 | Entrega | Revisar rúbrica, actualizar changelog y preparar sustentación | Andrés Gómez | versión final y pull request |
