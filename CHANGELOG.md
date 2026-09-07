@@ -13,7 +13,7 @@ commits, ramas o pull requests visibles en GitHub.
   - Preparación local del primer borrador técnico y de los scripts, que se publicarán en
     avances posteriores.
   - Registro del cronograma y del flujo de trabajo Git en `README.md`.
-- **Responsable:** Andrés Gómez
+- **Responsable:** Andrés Gómez, Andrea chaparro
 - **Rama:** `main` (preparación inicial).
 - **Dificultades:** todavía falta ejecutar la entrega en el servidor y completar los
   datos de conexión entregados por el curso.
@@ -31,7 +31,7 @@ commits, ramas o pull requests visibles en GitHub.
 
 - **Objetivo:** ejecutar el DDL en el esquema del curso y validar restricciones.
 - **Tareas:** probar PK, FK, `CHECK`, `UNIQUE`, triggers e índices.
-- **Responsable:** Andrés Gómez.
+- **Responsable:** Andrés Gómez, Andrea chaparro
 - **Rama:** `feature/ddl-restricciones`.
 - **Dificultades:** registrar aquí los errores de ejecución y su solución.
 
@@ -39,7 +39,7 @@ commits, ramas o pull requests visibles en GitHub.
 
 - **Objetivo:** cargar el dataset sintético y verificar las cinco vistas.
 - **Tareas:** contar registros, comprobar coherencia referencial y documentar resultados.
-- **Responsable:** Andrés Gómez.
+- **Responsable:** Andrés Gómez, Andrea chaparro
 - **Rama:** `feature/datos-vistas`.
 - **Dificultades:** registrar aquí inconsistencias o ajustes realizados.
 
@@ -47,7 +47,7 @@ commits, ramas o pull requests visibles en GitHub.
 
 - **Objetivo:** ejecutar las quince consultas sobre el modelo inicial.
 - **Tareas:** validar `JOIN`, outer join, subconsultas, agregaciones y reutilización de vistas.
-- **Responsable:** Andrés Gómez.
+- **Responsable:** Andrés Gómez, Andrea chaparro
 - **Rama:** `feature/consultas-pruebas`.
 - **Dificultades:** registrar aquí cualquier consulta corregida.
 
@@ -71,6 +71,6 @@ commits, ramas o pull requests visibles en GitHub.
 
 - **Objetivo:** revisar la rúbrica y preparar la sustentación.
 - **Tareas:** integrar ramas, revisar el README y entregar la versión final.
-- **Responsable:** Andrés Gómez.
+- **Responsable:** Andrés Gómez, Andrea chaparro
 - **Rama:** `main`.
 - **Dificultades:** registrar aquí las observaciones finales.
