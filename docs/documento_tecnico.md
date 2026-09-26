@@ -8,6 +8,15 @@
 **Integrante:** Andrés Gómez  
 **Entrega:** 1 — Modelo relacional, SQL e integridad sobre el modelo inicial
 
+> **Nota de alcance básico (exigida por el curso):** esta versión solo usa los
+> temas vistos en clase: Modelo Relacional, Introducción a SQL, JOINS,
+> Agregación/Agrupamiento/Subconsultas, Vistas, Modificadores (INSERT/UPDATE/DELETE)
+> e Integridad/Privilegios (PK, FK, UNIQUE, CHECK, GRANT/REVOKE).
+> No usa PLSQL/Triggers, Transacciones-Concurrencia, MongoDB, ni PL/SQL
+> (paquetes, triggers, DBMS_OUTPUT), ni funciones de ventana, ni WITH complejo.
+> Las reglas que exigirían triggers se verifican con consultas del script
+> `07_verificacion.sql`.
+
 ## 1. Descripción del problema y alcance
 
 Una Copa Mundial genera información relacionada con sus ediciones, sedes, estadios,
@@ -293,56 +302,60 @@ incompatible. La prueba DML documenta ambas decisiones.
 | `goles_marcados` | `NUMBER(3)` | No | `CHECK` entre 0 y 99 | Goles anotados por la selección. |
 | `resultado` | `VARCHAR2(7)` | No | `CHECK`: `GANO`, `EMPATO` o `PERDIO` | Resultado de la selección frente al marcador rival. |
 
-## 6. Implementación DDL y restricciones de negocio
+## 6. Implementación DDL y restricciones de negocio (solo conceptos básicos)
 
-El archivo `sql/01_ddl.sql` implementa:
+El archivo `sql/01_ddl.sql` implementa únicamente integridad declarativa básica:
 
 - Las cinco tablas y sus PK.
-- FKs obligatorias, incluyendo FKs compuestas para mantener la edición coherente.
+- FK simples (`id_edicion`, `id_estadio`, `id_partido`, `id_seleccion`), incluyendo
+  `ON DELETE CASCADE` solo de `PARTIDO` a `PARTICIPACION_PARTIDO`.
 - `UNIQUE` para años, nombres de estadio por edición, selecciones por edición, agenda
   del estadio, selección por partido y condición por partido.
 - `CHECK` para rangos, estados, fases, confederaciones, condiciones, goles y resultados.
-- Trigger de validación de fecha del partido y capacidad del estadio.
-- La combinación de `CHECK` de condición y `UNIQUE(id_partido, condicion)` limita el
-  partido a una participación local y una visitante.
-- Trigger de coherencia entre goles y resultado.
-- Trigger de cierre: un partido solo puede quedar `FINALIZADO` con exactamente dos
-  participaciones.
-- Contexto de borrado para permitir `ON DELETE CASCADE` sin permitir que un
-  `FINALIZADO` quede incompleto por un `DELETE` directo de su participación.
-- Protección de fechas de ediciones y capacidades de estadios cuando ya existen partidos
-  dependientes.
-- Índices sobre fase/edición, selección y agenda.
+- `DEFAULT` para asistencia (`0`) y estado (`PROGRAMADO`).
+- Tipo `DATE` para fechas (más básico que `TIMESTAMP`).
+- 2 índices simples de consulta frecuente (`partido(id_edicion,fase)` y
+  `participacion(id_seleccion)`).
 
-### 6.1 Restricciones derivadas del dominio
+No hay paquetes, ni triggers, ni PL/SQL, porque son temas no vistos.
+La combinación de `CHECK (condicion IN ('LOCAL','VISITANTE'))` y
+`UNIQUE(id_partido, condicion)` limita cada partido a un local y un visitante
+sin necesidad de triggers.
 
-| Regla | Implementación | Razón |
+### 6.1 Restricciones y cómo se verifican sin triggers
+
+| Regla | Implementación básica | Verificación |
 |---|---|---|
-| No hay goles negativos | `CHECK` en `goles_marcados` | Un marcador no puede ser negativo. |
-| Un partido tiene un local y un visitante | `UNIQUE(id_partido, condicion)` y trigger de cierre | Evita duplicados y valida la pareja completa. |
-| No hay tercera selección | `CHECK` de condición, `UNIQUE(id_partido, condicion)` y trigger de cierre | La relación deportiva es binaria en esta entrega. |
-| Un partido debe usar un estadio de su edición | FK compuesta | Evita cruces de edición. |
-| El partido ocurre durante el torneo | Trigger contra fechas de la edición | Impide calendarios fuera de rango. |
-| Un estadio no tiene horarios cruzados | `UNIQUE(id_estadio, fecha_hora)` | Evita doble reserva. |
-| Asistencia no supera aforo | Trigger contra `ESTADIO.capacidad` | Preserva coherencia operativa. |
-| El resultado corresponde a los goles | Trigger compuesto | Evita que el texto contradiga el marcador. |
-| No se elimina una selección con historial | FK con `NO ACTION` implícito | Preserva trazabilidad deportiva. |
-| Un partido finalizado está completo | Trigger sobre `PARTIDO` | Cierra el flujo solo con dos participantes. |
+| No hay goles negativos | `CHECK` en `goles_marcados` | Consulta “goles < 0” en `07_verificacion.sql` (0 filas) |
+| Un partido tiene un local y un visitante | `UNIQUE(id_partido, condicion)` | Consulta de condición duplicada (0 filas) |
+| No hay tercera selección ni repetidos | `UNIQUE(id_partido,id_seleccion)` | Consulta de duplicados, Q14 (0 filas) |
+| Un estadio no tiene horarios cruzados | `UNIQUE(id_estadio, fecha_hora)` | El DDL lo rechaza al insertar |
+| Asistencia no negativa | `CHECK (asistencia >= 0)` | Carga correcta + consulta vs capacidad |
+| Asistencia no supera aforo | Dato cargado correcto (sin trigger) | Consulta `asistencia > capacidad` (0 filas) |
+| Partido dentro de la edición | Dato cargado correcto (sin trigger) | Consulta de fechas fuera de rango (0 filas) |
+| Resultado coherente con goles | Dato cargado correcto (sin trigger) | Revisión manual del dataset pequeño |
+| Exactamente 2 participaciones | Dato cargado correcto (sin trigger) | Consulta `COUNT <> 2` (0 filas) |
+| No se elimina selección con historial | FK con `NO ACTION` implícito | `DELETE` de prueba debe dar ORA-02292 |
 
 Las reglas de convocatorias, edad, dorsales, jugadores, árbitros y estadísticas
 individuales se declaran fuera de alcance porque esas entidades no existen en el modelo
 inicial. Se incorporan como trabajo de la Entrega 2.
 
-## 7. Datos de prueba
+## 7. Datos de prueba (solo INSERT básicos)
 
-El archivo `sql/02_datos_prueba.sql` carga un dataset sintético reproducible mediante
-PL/SQL:
+El archivo `sql/02_datos_prueba.sql` carga un dataset sintético pequeño solo con
+`INSERT INTO ... VALUES` (tema Modificadores), sin PL/SQL ni bucles:
 
-- 4 ediciones (`2026`, `2030`, `2034` y `2038`).
-- 100 estadios, 25 por edición.
-- 192 selecciones, 48 por edición.
-- 416 partidos, 104 por edición.
-- 832 participaciones, exactamente dos por partido.
+- 2 ediciones (`2026` y `2030`).
+- 5 estadios (3 en 2026, 2 en 2030).
+- 10 selecciones (6 en 2026, 4 en 2030).
+- 8 partidos (6 en 2026, 2 en 2030).
+- 16 participaciones, exactamente dos por partido (`LOCAL` + `VISITANTE`).
+
+Casos incluidos a propósito: un 0–0 (5002), un 4–4 con 8 goles (5003),
+dos selecciones que en 2026 solo juegan como visitantes (Senegal y
+Nueva Zelanda, para la consulta 10) y estadios con más de una fase
+(Azteca y Bogotá, para la consulta 13).
 
 La tabla de ediciones es un catálogo pequeño y por naturaleza no requiere 100 filas. Las
 demás tablas de operación superan el mínimo de 100 registros solicitado. Todos los
@@ -360,7 +373,7 @@ Se implementan cinco vistas en `sql/03_vistas.sql`:
    atípicos y máximos marcadores; las consultas analíticas filtran partidos finalizados.
 2. **`VW_TABLA_POSICIONES`**: calcula partidos, victorias, empates, derrotas, puntos,
    goles a favor, goles en contra y diferencia por edición y selección, únicamente a
-   partir de partidos finalizados.
+   partir de partidos finalizados. Solo usa `JOIN` + `GROUP BY` (sin `WITH` ni ventanas).
 3. **`VW_GOLEADORES_SEL`**: consolida goles y partidos por selección y edición usando
    partidos finalizados. Sirve para rankings sobre el modelo inicial.
 4. **`VW_OCUPACION_ESTADIO`**: calcula asistencia total, partidos albergados y ocupación
@@ -371,33 +384,30 @@ Se implementan cinco vistas en `sql/03_vistas.sql`:
 Las vistas reducen lógica repetida, facilitan el acceso de consulta y permiten restringir
 la exposición a columnas operativas innecesarias.
 
-## 9. Modificadores DML y pruebas
+## 9. Modificadores DML y pruebas (solo INSERT/UPDATE/DELETE/SELECT)
 
-El archivo `sql/04_dml_pruebas.sql`:
+El archivo `sql/04_dml_pruebas.sql` usa únicamente modificadores básicos:
 
-1. Crea un partido de prueba en estado `PROGRAMADO`.
-2. Inserta sus dos participaciones con `INSERT ALL`.
-3. Actualiza el marcador de ambas selecciones.
-4. Cambia el encuentro a `FINALIZADO`.
-5. Intenta un gol negativo, una tercera participación, una fecha fuera de rango, un
-   resultado inconsistente, el borrado de una participación finalizada y el cierre
-   directo de un partido sin participaciones.
-6. Borra el partido de prueba y verifica que sus participaciones se borran por
-   `ON DELETE CASCADE`.
-7. Intenta eliminar una selección con historial y verifica el rechazo por `NO ACTION`.
+1. Crea un partido de prueba (990000) en estado `PROGRAMADO` con `INSERT`.
+2. Inserta sus dos participaciones con dos `INSERT` simples.
+3. Actualiza el marcador con `UPDATE`.
+4. Cierra el encuentro a `FINALIZADO` con `UPDATE`.
+5. Cada caso inválido está comentado para descomentar y ver el error Oracle
+   (`CHECK`, `UNIQUE` o FK): gol negativo, tercera participación, selección
+   repetida, asistencia negativa, fase inválida y selección inexistente.
+6. Borra el partido de prueba con `DELETE` y verifica con `SELECT COUNT(*)`
+   que sus participaciones se borraron por `ON DELETE CASCADE`.
+7. Intenta eliminar la selección 101 con historial (comentado): debe fallar
+   con ORA-02292 por `NO ACTION` implícito.
 
-Cada caso inválido captura `SQLERRM`, revierte la operación con un savepoint y deja el
-resultado visible en `DBMS_OUTPUT`.
+## 10. Privilegios básicos (solo GRANT/REVOKE)
 
-## 10. Privilegios básicos
-
-El archivo `sql/05_privilegios.sql` debe ejecutarse por el administrador o por un usuario
-con permisos de creación de roles:
+El archivo `sql/05_privilegios.sql` solo usa `CREATE ROLE`, `GRANT` y `REVOKE`:
 
 - `ROL_FIFA_E1_ANDRES_CONSULTA`: `SELECT` sobre las cinco tablas y las cinco vistas; no recibe
   permisos de modificación.
 - `ROL_FIFA_E1_ANDRES_OPERATIVO`: `SELECT` sobre el modelo y `INSERT`/`UPDATE` sobre `PARTIDO` y
-  `PARTICIPACION_PARTIDO`; no recibe `DELETE` ni permisos sobre una tabla de auditoría.
+  `PARTICIPACION_PARTIDO`; se le revoca `DELETE` explícitamente.
 
 El esquema inicial todavía no tiene auditoría. El control de auditoría se incorporará en
 la ampliación del modelo. La prueba de acceso se debe completar otorgando los roles a
@@ -464,14 +474,56 @@ erDiagram
 `SUSTITUCION`, `ZONA_ESTADIO`, `ENTRADA`, `MEDIO`, `PERIODISTA`,
 `ACREDITACION`, `TIPO_INCIDENCIA`, `INCIDENCIA` y `AUDITORIA_EVENTO`.
 
-## 13. Evidencias pendientes de ejecución en el servidor
+## 13. Evidencias de ejecución en el servidor (solo SELECT)
 
-Antes de entregar, se deben anexar al repositorio o al documento final:
+Antes de entregar, ejecutar en orden `01` a `07` y guardar:
+- Conteo de filas por tabla (esperado 2 / 5 / 10 / 8 / 16).
+- Resultados de las quince consultas básicas.
+- SELECT de cada paso del DML y conteo post-`DELETE` en cascada.
+- Errores al descomentar cada caso inválido (`CHECK`/`UNIQUE`/FK).
+- Evidencia de `GRANT` con `user_tab_privs_made`.
+- Salidas de `07_verificacion.sql` (todas las reglas con cero filas).
 
-- Captura del conteo de filas por tabla.
-- Resultados de las quince consultas.
-- Salidas de los seis intentos inválidos controlados.
-- Evidencia del borrado `CASCADE` y del borrado rechazado.
-- Evidencia de `GRANT`/`REVOKE` con los roles del servidor.
-- Diagrama exportado o captura del ERD.
-- Historial de commits, ramas, pull requests y `CHANGELOG.md` semanal.
+## 14. Implementación de la Entrega 3 (VERSIÓN BÁSICA, sin programación PL/SQL)
+
+La tercera entrega conserva la base E1 y la amplía solo con DDL/DML básicos
+(FK simples, `DATE`, IDs manuales, 2 índices). No hay funciones, paquete,
+tipos, secuencias ni triggers (temas no vistos):
+
+- `SEDE`, `EDICION_SEDE`, `CIUDAD` y `GRUPO_TORNEO`;
+- `INSCRIPCION_GRUPO`, `JUGADOR`, `CONVOCATORIA` y `CONVOCATORIA_JUGADOR`;
+- `CUERPO_TECNICO` y `ASIGNACION_CUERPO_TECNICO`;
+- `ESTADISTICA_JUGADOR_PARTIDO`, `TIPO_INCIDENCIA` e `INCIDENCIA`;
+- `TABLA_POSICIONES_E3`, `CIERRE_FASE` y `AUDITORIA_EVENTO` (manual).
+
+### 14.1 Operaciones equivalentes sin PL/SQL
+
+`sql/10_entrega3_programacion.sql` reemplaza cada programa por SQL básico:
+
+1. Diferencia de gol: `SUM` con `CASE`.
+2. Resultado esperado: `CASE` (ej. 2-1 → `GANO/PERDIO`).
+3. Partido válido: `COUNT` de `LOCAL/VISITANTE` + consulta de inconsistencias (0 filas).
+4. Goles de jugador: `SUM` filtrado.
+5. Ranking: `GROUP BY + ORDER BY + FETCH FIRST` (sin función pipelined).
+6. Puntos: `SUM(CASE resultado...)`.
+7. Carga de resultado: `UPDATE` doble comentado como práctica.
+8. Posiciones: `DELETE + INSERT SELECT` (10 filas).
+9. Cierre de fase: `INSERT` en `CIERRE_FASE` + verificación.
+10. Auditoría: `INSERT` manual (sin triggers).
+
+### 14.2 Reportes y aplicación (básicos)
+
+`sql/11_entrega3_reportes.sql` expone 6 vistas sin ventanas ni PL/SQL
+(resultados, posiciones por grupo, goleadores, incidencias, resumen por fase
+y auditoría). La tabla de posiciones ya viene llena desde el script 10 con
+`INSERT SELECT`. La aplicación en `app/` replica esos casos con `localStorage`
+(CRUD, partidos, estadísticas, filtros por edición/selección/grupo/fase) sin
+llamar a funciones ni paquetes Oracle.
+
+### 14.3 Evidencia de ejecución (solo SELECT)
+
+`sql/12_entrega3_pruebas.sql` muestra diferencia/puntos con `SELECT`, ranking
+`top 5`, `UPDATE` de ejemplo, cierre y conteo de los 6 reportes (sin funciones
+ni triggers). `sql/13_entrega3_verificacion.sql` comprueba conteos, grupos de
+máximo 4, coherencia marcador vs estadísticas, partidos completos e
+incidencias auditadas, todo con `SELECT` (cero filas en las reglas).

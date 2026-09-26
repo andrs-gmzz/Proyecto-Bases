@@ -13,9 +13,8 @@ ES = ESTADIO
 
 Se utiliza `γ` para agregación, `ρ` para renombramiento, `σ` para selección, `π` para
 proyección, `⋈` para junta, `−` para diferencia, `τ` para ordenamiento y `TOP5` como
-operador extendido de las consultas de ranking. En álgebra clásica, `TOP5` se puede
-interpretar como una operación de álgebra extendida equivalente a ordenar y conservar las
-primeras cinco tuplas.
+operador extendido de las consultas de ranking. En SQL básico, `TOP5` se implementa
+con `ORDER BY ... FETCH FIRST 5 ROWS ONLY` (consulta 1).
 
 ## Consulta 1 — Top 5 selecciones con más goles
 
@@ -112,7 +111,7 @@ consulta SQL.
 
 | Consulta | Operadores principales | Implementación SQL |
 |---|---|---|
-| 1 | `σ`, `π`, `⋈`, `γ`, `τ`, `TOP5` | `VW_GOLEADORES_SEL`, `ORDER BY` y límite de cinco filas |
+| 1 | `σ`, `π`, `⋈`, `γ`, `τ`, `TOP5` | `VW_GOLEADORES_SEL`, `ORDER BY` y `FETCH FIRST 5 ROWS ONLY` |
 | 3 | `ρ`, `⋈`, `γ`, `MAX` | Autojunta lógica y agregación |
 | 7 | `π`, `σ`, `−`, `⋈` | Subconsulta correlacionada `NOT EXISTS` |
 | 13 | `⋈`, `γ`, `σ` | `GROUP BY` y `HAVING COUNT(DISTINCT ...) > 1` |
