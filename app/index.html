@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Panel de gestión y reportes del Proyecto FIFA - Entrega 3">
+  <title>FIFA Control Room · Entrega 3</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Navegación principal">
+      <div class="brand">
+        <span class="brand-mark">F</span>
+        <div>
+          <strong>FIFA Control Room</strong>
+          <small>Entrega 3 · BD</small>
+        </div>
+      </div>
+
+      <nav class="main-nav">
+        <button class="nav-link active" data-view="dashboard">
+          <span>⌂</span> Resumen
+        </button>
+        <button class="nav-link" data-view="catalogs">
+          <span>▦</span> Catálogos
+        </button>
+        <button class="nav-link" data-view="matches">
+          <span>◈</span> Partidos y estadísticas
+        </button>
+        <button class="nav-link" data-view="reports">
+          <span>◒</span> Reportes
+        </button>
+        <button class="nav-link" data-view="incidents">
+          <span>!</span> Incidencias
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <span class="status-dot"></span>
+        <span>Modo demo local</span>
+        <button id="resetData" class="text-button" type="button">Restablecer</button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">SISTEMA DE INFORMACIÓN · COPA MUNDIAL</p>
+          <h1 id="pageTitle">Resumen del torneo</h1>
+        </div>
+        <div class="topbar-actions">
+          <button id="exportData" class="button button-ghost" type="button">Exportar JSON</button>
+          <span class="date-chip" id="currentDate"></span>
+        </div>
+      </header>
+
+      <section id="view-dashboard" class="view active" aria-labelledby="pageTitle">
+        <div class="filter-bar">
+          <div class="filter-heading">
+            <span class="filter-icon">⌕</span>
+            <div>
+              <strong>Filtros del torneo</strong>
+              <small>Actualizan los indicadores y tablas del panel</small>
+            </div>
+          </div>
+          <label>
+            Edición
+            <select id="filterEdition" data-filter>
+              <option value="all">Todas</option>
+            </select>
+          </label>
+          <label>
+            Selección
+            <select id="filterTeam" data-filter>
+              <option value="all">Todas</option>
+            </select>
+          </label>
+          <label>
+            Grupo
+            <select id="filterGroup" data-filter>
+              <option value="all">Todos</option>
+            </select>
+          </label>
+          <label>
+            Fase
+            <select id="filterPhase" data-filter>
+              <option value="all">Todas</option>
+              <option>FASE DE GRUPOS</option>
+              <option>DIECISEISAVOS</option>
+              <option>OCTAVOS</option>
+              <option>CUARTOS</option>
+              <option>SEMIFINALES</option>
+              <option>TERCER PUESTO</option>
+              <option>FINAL</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="kpi-grid" id="kpiGrid"></div>
+
+        <div class="dashboard-grid">
+          <article class="panel panel-large">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">CLASIFICACIÓN</p>
+                <h2>Tabla de posiciones</h2>
+              </div>
+              <span class="panel-badge">Puntos · DG · GF</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Selección</th>
+                    <th>PJ</th>
+                    <th>G</th>
+                    <th>E</th>
+                    <th>P</th>
+                    <th>GF</th>
+                    <th>DG</th>
+                    <th>PTS</th>
+                  </tr>
+                </thead>
+                <tbody id="standingsTable"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">INDICADOR</p>
+                <h2>Goleadores</h2>
+              </div>
+              <span class="panel-badge accent">Top 5</span>
+            </div>
+            <div id="scorersList" class="scorers-list"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">FASES</p>
+                <h2>Goles por fase</h2>
+              </div>
+            </div>
+            <div id="phaseBars" class="phase-bars"></div>
+          </article>
+
+          <article class="panel panel-large">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">OPERACIÓN</p>
+                <h2>Últimas incidencias</h2>
+              </div>
+              <button class="link-button" data-view-link="incidents" type="button">Ver todas →</button>
+            </div>
+            <div id="recentIncidents" class="incident-list"></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="view-catalogs" class="view" aria-labelledby="pageTitle">
+        <div class="section-intro">
+          <div>
+            <p class="eyebrow">ADMINISTRACIÓN</p>
+            <h2>Catálogos del torneo</h2>
+            <p>Alta, edición y consulta de la información maestra solicitada por la rúbrica.</p>
+          </div>
+          <label class="compact-select">
+            Catálogo
+            <select id="catalogType">
+              <option value="editions">Ediciones</option>
+              <option value="venues">Sedes</option>
+              <option value="cities">Ciudades</option>
+              <option value="stadiums">Estadios</option>
+              <option value="teams">Selecciones</option>
+              <option value="groups">Grupos</option>
+              <option value="players">Jugadores</option>
+              <option value="staff">Cuerpo técnico</option>
+            </select>
+          </label>
+        </div>
+        <div class="catalog-layout">
+          <article class="panel form-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">FORMULARIO</p>
+                <h2 id="catalogFormTitle">Nueva edición</h2>
+              </div>
+              <button id="cancelCatalogEdit" class="icon-button hidden" type="button" aria-label="Cancelar edición">×</button>
+            </div>
+            <form id="catalogForm"></form>
+          </article>
+          <article class="panel panel-large">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">REGISTROS</p>
+                <h2 id="catalogTableTitle">Ediciones</h2>
+              </div>
+              <span class="panel-badge" id="catalogCount">0 registros</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead id="catalogTableHead"></thead>
+                <tbody id="catalogTableBody"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="view-matches" class="view" aria-labelledby="pageTitle">
+        <div class="section-intro">
+          <div>
+            <p class="eyebrow">OPERACIÓN DEPORTIVA</p>
+            <h2>Partidos y estadísticas</h2>
+            <p>Registra encuentros, marcadores y rendimiento individual.</p>
+          </div>
+        </div>
+        <div class="matches-layout">
+          <article class="panel form-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">REGISTRAR</p>
+                <h2>Nuevo partido</h2>
+              </div>
+            </div>
+            <form id="matchForm"></form>
+          </article>
+          <article class="panel panel-large">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">CALENDARIO</p>
+                <h2>Partidos registrados</h2>
+              </div>
+              <span class="panel-badge" id="matchCount">0 partidos</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Fase</th>
+                    <th>Local</th>
+                    <th>Marcador</th>
+                    <th>Visitante</th>
+                    <th>Estado</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="matchesTable"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+        <article class="panel stats-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">RENDIMIENTO</p>
+              <h2>Registrar estadística individual</h2>
+            </div>
+          </div>
+          <form id="statsForm" class="form-grid form-grid-wide"></form>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Jugador</th>
+                  <th>Partido</th>
+                  <th>Min</th>
+                  <th>Goles</th>
+                  <th>Asist.</th>
+                  <th>TA</th>
+                  <th>TR</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="statsTable"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section id="view-reports" class="view" aria-labelledby="pageTitle">
+        <div class="section-intro">
+          <div>
+            <p class="eyebrow">CONSULTAS CONSOLIDADAS</p>
+            <h2>Reportes del torneo</h2>
+            <p>Los filtros se aplican sobre resultados, posiciones, goleadores e incidencias.</p>
+          </div>
+        </div>
+        <div class="report-filters filter-bar">
+          <label>Edición<select id="reportEdition" data-report-filter><option value="all">Todas</option></select></label>
+          <label>Selección<select id="reportTeam" data-report-filter><option value="all">Todas</option></select></label>
+          <label>Grupo<select id="reportGroup" data-report-filter><option value="all">Todos</option></select></label>
+          <label>Fase<select id="reportPhase" data-report-filter><option value="all">Todas</option></select></label>
+        </div>
+        <div class="report-grid">
+          <article class="panel panel-wide">
+            <div class="panel-heading"><h2>Resultados consolidados</h2><span class="panel-badge">Marcadores</span></div>
+            <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Fase</th><th>Grupo</th><th>Local</th><th>Marcador</th><th>Visitante</th><th>Inc.</th></tr></thead><tbody id="reportResults"></tbody></table></div>
+          </article>
+          <article class="panel">
+            <div class="panel-heading"><h2>Ranking de goleadores</h2></div>
+            <div class="table-wrap"><table><thead><tr><th>Jugador</th><th>Selección</th><th>Goles</th></tr></thead><tbody id="reportScorers"></tbody></table></div>
+          </article>
+          <article class="panel">
+            <div class="panel-heading"><h2>Incidencias filtradas</h2></div>
+            <div id="reportIncidents" class="incident-list"></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="view-incidents" class="view" aria-labelledby="pageTitle">
+        <div class="section-intro">
+          <div>
+            <p class="eyebrow">SEGUIMIENTO OPERATIVO</p>
+            <h2>Incidencias</h2>
+            <p>Registra goles, tarjetas, cambios, lesiones y revisiones VAR.</p>
+          </div>
+        </div>
+        <div class="incidents-layout">
+          <article class="panel form-panel">
+            <div class="panel-heading">
+              <div><p class="eyebrow">REGISTRAR</p><h2>Nueva incidencia</h2></div>
+            </div>
+            <form id="incidentForm"></form>
+          </article>
+          <article class="panel panel-large">
+            <div class="panel-heading">
+              <div><p class="eyebrow">HISTORIAL</p><h2>Incidencias registradas</h2></div>
+              <span class="panel-badge" id="incidentCount">0 registros</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Min.</th><th>Tipo</th><th>Partido</th><th>Selección</th><th>Descripción</th><th>Estado</th><th></th></tr></thead>
+                <tbody id="incidentsTable"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,347 +1,116 @@
--- Entrega 1 - DML, errores controlados y comportamiento ON DELETE
--- Requiere haber ejecutado el DDL y el dataset.
+-- Entrega 1 BASICA - DML, modificadores y comportamientos ON DELETE
+-- Solo usa INSERT, UPDATE, DELETE y SELECT (tema 7-Modificadores).
+-- NO usa PL/SQL, ni SAVEPOINT, ni DBMS_OUTPUT, ni manejo de excepciones.
+-- Forma de uso en clase:
+--   1. Ejecutar los PASOS 1 a 4 en orden (ciclo de vida de un partido).
+--   2. Ejecutar cada SELECT de verificacion para ver el resultado.
+--   3. Los CASOS INVALIDOS estan comentados: al descomentar cada uno,
+--      Oracle debe rechazarlo con error de CHECK, UNIQUE o FK.
+--      Asi se demuestra la integridad sin usar triggers ni PL/SQL.
 
 SET DEFINE OFF;
-SET SERVEROUTPUT ON;
 
-DECLARE
-    c_partido_prueba CONSTANT NUMBER := 990000;
-    v_estado         partido.estado_partido%TYPE;
-    v_hijos          NUMBER;
-    v_rechazada      BOOLEAN;
-    v_codigo_error   NUMBER;
-    v_mensaje_error  VARCHAR2(4000);
-BEGIN
-    DBMS_OUTPUT.PUT_LINE('=== CICLO DE VIDA DE UN PARTIDO ===');
+------------------------------------------------------------------------
+-- PASO 1: crear un partido de prueba en estado PROGRAMADO.
+------------------------------------------------------------------------
 
-    -- 1. Crear el encuentro en estado transitorio.
-    INSERT INTO partido (
-        id_partido, id_edicion, id_estadio, fecha_hora, fase,
-        asistencia_registrada, estado_partido
-    ) VALUES (
-        c_partido_prueba,
-        1,
-        1001,
-        TIMESTAMP '2026-07-19 18:00:00',
-        'FASE DE GRUPOS',
-        30000,
-        'PROGRAMADO'
-    );
+INSERT INTO partido (id_partido, id_edicion, id_estadio, fecha_hora, fase, asistencia_registrada, estado_partido)
+VALUES (990000, 1, 1001, TO_DATE('2026-07-10 18:00', 'YYYY-MM-DD HH24:MI'), 'FASE DE GRUPOS', 30000, 'PROGRAMADO');
 
-    -- 2. Registrar las dos selecciones en una sola sentencia.
-    INSERT ALL
-        INTO participacion_partido (
-            id_participacion, id_partido, id_edicion, id_seleccion,
-            condicion, goles_marcados, resultado
-        ) VALUES (
-            c_partido_prueba * 10 + 1,
-            c_partido_prueba,
-            1,
-            1001,
-            'LOCAL',
-            0,
-            'EMPATO'
-        )
-        INTO participacion_partido (
-            id_participacion, id_partido, id_edicion, id_seleccion,
-            condicion, goles_marcados, resultado
-        ) VALUES (
-            c_partido_prueba * 10 + 2,
-            c_partido_prueba,
-            1,
-            1002,
-            'VISITANTE',
-            0,
-            'EMPATO'
-        )
-    SELECT 1 FROM dual;
+-- Verificacion: el partido existe y esta programado.
+SELECT id_partido, fase, asistencia_registrada, estado_partido
+  FROM partido
+ WHERE id_partido = 990000;
 
-    -- 3. Actualizar el marcador de ambas participaciones.
-    UPDATE participacion_partido
-       SET goles_marcados = CASE
-                                WHEN condicion = 'LOCAL' THEN 2
-                                ELSE 1
-                            END,
-           resultado = CASE
-                          WHEN condicion = 'LOCAL' THEN 'GANO'
-                          ELSE 'PERDIO'
-                      END
-     WHERE id_partido = c_partido_prueba;
+------------------------------------------------------------------------
+-- PASO 2: registrar sus dos participaciones (dos INSERT simples).
+------------------------------------------------------------------------
 
-    -- 4. Cerrar el partido; el trigger exige exactamente dos participaciones.
-    UPDATE partido
-       SET estado_partido = 'FINALIZADO'
-     WHERE id_partido = c_partido_prueba;
+INSERT INTO participacion_partido (id_participacion, id_partido, id_seleccion, condicion, goles_marcados, resultado)
+VALUES (9900001, 990000, 101, 'LOCAL', 0, 'EMPATO');
 
-    SELECT estado_partido
-      INTO v_estado
-      FROM partido
-     WHERE id_partido = c_partido_prueba;
+INSERT INTO participacion_partido (id_participacion, id_partido, id_seleccion, condicion, goles_marcados, resultado)
+VALUES (9900002, 990000, 102, 'VISITANTE', 0, 'EMPATO');
 
-    DBMS_OUTPUT.PUT_LINE('Partido ' || c_partido_prueba
-                         || ' cerrado con estado: ' || v_estado);
+-- Verificacion: el partido tiene exactamente 2 participaciones.
+SELECT id_partido, COUNT(*) AS participaciones
+  FROM participacion_partido
+ WHERE id_partido = 990000
+ GROUP BY id_partido;
 
-    DBMS_OUTPUT.PUT_LINE('=== OPERACIONES INVALIDAS ===');
+------------------------------------------------------------------------
+-- PASO 3: actualizar el marcador (UPDATE basico).
+------------------------------------------------------------------------
 
-    -- Caso inválido 1: CHECK de goles no negativos.
-    SAVEPOINT prueba_gol_negativo;
-    v_rechazada := FALSE;
-    BEGIN
-        UPDATE participacion_partido
-           SET goles_marcados = -1
-         WHERE id_participacion = c_partido_prueba * 10 + 1;
-    EXCEPTION
-        WHEN OTHERS THEN
-            v_rechazada := TRUE;
-            v_codigo_error := SQLCODE;
-            v_mensaje_error := SQLERRM;
-            ROLLBACK TO prueba_gol_negativo;
-            IF v_codigo_error <> -2290 THEN
-                RAISE;
-            END IF;
-            DBMS_OUTPUT.PUT_LINE(
-                'Caso 1 rechazado correctamente (gol negativo): '
-                || v_mensaje_error
-            );
-    END;
-    IF NOT v_rechazada THEN
-        ROLLBACK TO prueba_gol_negativo;
-        RAISE_APPLICATION_ERROR(
-            -20901,
-            'La prueba del gol negativo no produjo error.'
-        );
-    END IF;
+UPDATE participacion_partido SET goles_marcados = 2, resultado = 'GANO'
+ WHERE id_participacion = 9900001;
 
-    -- Caso inválido 2: un tercer participante repite la condición LOCAL.
-    SAVEPOINT prueba_tercer_participante;
-    v_rechazada := FALSE;
-    BEGIN
-        INSERT INTO participacion_partido (
-            id_participacion, id_partido, id_edicion, id_seleccion,
-            condicion, goles_marcados, resultado
-        ) VALUES (
-            c_partido_prueba * 10 + 3,
-            c_partido_prueba,
-            1,
-            1003,
-            'LOCAL',
-            0,
-            'EMPATO'
-        );
-    EXCEPTION
-        WHEN OTHERS THEN
-            v_rechazada := TRUE;
-            v_codigo_error := SQLCODE;
-            v_mensaje_error := SQLERRM;
-            ROLLBACK TO prueba_tercer_participante;
-            IF v_codigo_error <> -1 THEN
-                RAISE;
-            END IF;
-            DBMS_OUTPUT.PUT_LINE(
-                'Caso 2 rechazado correctamente (tercer participante): '
-                || v_mensaje_error
-            );
-    END;
-    IF NOT v_rechazada THEN
-        ROLLBACK TO prueba_tercer_participante;
-        RAISE_APPLICATION_ERROR(
-            -20902,
-            'La prueba de la tercera participación no produjo error.'
-        );
-    END IF;
+UPDATE participacion_partido SET goles_marcados = 1, resultado = 'PERDIO'
+ WHERE id_participacion = 9900002;
 
-    -- Caso inválido 3: el partido se agenda fuera del periodo de la edición.
-    SAVEPOINT prueba_fecha_fuera_rango;
-    v_rechazada := FALSE;
-    BEGIN
-        INSERT INTO partido (
-            id_partido, id_edicion, id_estadio, fecha_hora, fase,
-            asistencia_registrada, estado_partido
-        ) VALUES (
-            c_partido_prueba + 1,
-            1,
-            1001,
-            TIMESTAMP '2027-01-01 12:00:00',
-            'FASE DE GRUPOS',
-            1000,
-            'PROGRAMADO'
-        );
-    EXCEPTION
-        WHEN OTHERS THEN
-            v_rechazada := TRUE;
-            v_codigo_error := SQLCODE;
-            v_mensaje_error := SQLERRM;
-            ROLLBACK TO prueba_fecha_fuera_rango;
-            IF v_codigo_error <> -20001 THEN
-                RAISE;
-            END IF;
-            DBMS_OUTPUT.PUT_LINE(
-                'Caso 3 rechazado correctamente (fecha fuera de rango): '
-                || v_mensaje_error
-            );
-    END;
-    IF NOT v_rechazada THEN
-        ROLLBACK TO prueba_fecha_fuera_rango;
-        RAISE_APPLICATION_ERROR(
-            -20903,
-            'La prueba de fecha fuera de rango no produjo error.'
-        );
-    END IF;
+-- Verificacion del marcador.
+SELECT id_seleccion, condicion, goles_marcados, resultado
+  FROM participacion_partido
+ WHERE id_partido = 990000
+ ORDER BY condicion;
 
-    -- Caso inválido 4: resultado textual contrario al marcador.
-    SAVEPOINT prueba_resultado_inconsistente;
-    v_rechazada := FALSE;
-    BEGIN
-        UPDATE participacion_partido
-           SET resultado = 'GANO'
-         WHERE id_participacion = c_partido_prueba * 10 + 2;
-    EXCEPTION
-        WHEN OTHERS THEN
-            v_rechazada := TRUE;
-            v_codigo_error := SQLCODE;
-            v_mensaje_error := SQLERRM;
-            ROLLBACK TO prueba_resultado_inconsistente;
-            IF v_codigo_error <> -20006 THEN
-                RAISE;
-            END IF;
-            DBMS_OUTPUT.PUT_LINE(
-                'Caso 4 rechazado correctamente (resultado inconsistente): '
-                || v_mensaje_error
-            );
-    END;
-    IF NOT v_rechazada THEN
-        ROLLBACK TO prueba_resultado_inconsistente;
-        RAISE_APPLICATION_ERROR(
-            -20904,
-            'La prueba de resultado inconsistente no produjo error.'
-        );
-    END IF;
+------------------------------------------------------------------------
+-- PASO 4: cerrar el partido (UPDATE de estado).
+------------------------------------------------------------------------
 
-    -- Caso inválido 5: intento de borrar una participación de un partido
-    -- finalizado; la pareja debe conservarse completa.
-    SAVEPOINT prueba_borrado_participacion;
-    v_rechazada := FALSE;
-    BEGIN
-        DELETE FROM participacion_partido
-         WHERE id_participacion = c_partido_prueba * 10 + 1;
-    EXCEPTION
-        WHEN OTHERS THEN
-            v_rechazada := TRUE;
-            v_codigo_error := SQLCODE;
-            v_mensaje_error := SQLERRM;
-            ROLLBACK TO prueba_borrado_participacion;
-            IF v_codigo_error <> -20013 THEN
-                RAISE;
-            END IF;
-            DBMS_OUTPUT.PUT_LINE(
-                'Caso 5 rechazado correctamente (partido finalizado): '
-                || v_mensaje_error
-            );
-    END;
-    IF NOT v_rechazada THEN
-        ROLLBACK TO prueba_borrado_participacion;
-        RAISE_APPLICATION_ERROR(
-            -20905,
-            'La eliminación de una participación finalizada no fue rechazada.'
-        );
-    END IF;
+UPDATE partido SET estado_partido = 'FINALIZADO'
+ WHERE id_partido = 990000;
 
-    -- Caso inválido 6: un partido no puede nacer directamente como
-    -- FINALIZADO sin haber registrado sus dos participaciones.
-    SAVEPOINT prueba_cierre_directo;
-    v_rechazada := FALSE;
-    BEGIN
-        INSERT INTO partido (
-            id_partido, id_edicion, id_estadio, fecha_hora, fase,
-            asistencia_registrada, estado_partido
-        ) VALUES (
-            c_partido_prueba + 2,
-            1,
-            1001,
-            TIMESTAMP '2026-07-19 21:00:00',
-            'FASE DE GRUPOS',
-            1000,
-            'FINALIZADO'
-        );
-    EXCEPTION
-        WHEN OTHERS THEN
-            v_rechazada := TRUE;
-            v_codigo_error := SQLCODE;
-            v_mensaje_error := SQLERRM;
-            ROLLBACK TO prueba_cierre_directo;
-            IF v_codigo_error <> -20007 THEN
-                RAISE;
-            END IF;
-            DBMS_OUTPUT.PUT_LINE(
-                'Caso 6 rechazado correctamente (cierre directo): '
-                || v_mensaje_error
-            );
-    END;
-    IF NOT v_rechazada THEN
-        ROLLBACK TO prueba_cierre_directo;
-        RAISE_APPLICATION_ERROR(
-            -20906,
-            'Un partido fue creado como FINALIZADO sin participaciones.'
-        );
-    END IF;
+SELECT id_partido, estado_partido
+  FROM partido
+ WHERE id_partido = 990000;
 
-    DBMS_OUTPUT.PUT_LINE('=== PRUEBAS ON DELETE ===');
+------------------------------------------------------------------------
+-- CASOS INVALIDOS (descomentar uno por uno para ver el error de Oracle).
+-- Cada uno demuestra una restriccion CHECK, UNIQUE o FK del DDL basico.
+------------------------------------------------------------------------
 
-    -- Relación CASCADE: borrar el partido borra sus participaciones.
-    DELETE FROM partido
-     WHERE id_partido = c_partido_prueba;
+-- CASO 1: gol negativo (debe fallar por CK_PP_GOLES).
+-- UPDATE participacion_partido SET goles_marcados = -1 WHERE id_participacion = 9900001;
 
-    SELECT COUNT(*)
-      INTO v_hijos
-      FROM participacion_partido
-     WHERE id_partido = c_partido_prueba;
+-- CASO 2: tercera participacion con condicion repetida (debe fallar por UQ_PP_PARTIDO_CONDICION).
+-- INSERT INTO participacion_partido (id_participacion, id_partido, id_seleccion, condicion, goles_marcados, resultado)
+-- VALUES (9900003, 990000, 103, 'LOCAL', 0, 'EMPATO');
 
-    IF v_hijos = 0 THEN
-        DBMS_OUTPUT.PUT_LINE(
-            'CASCADE verificado: las participaciones del partido fueron borradas.'
-        );
-    ELSE
-        DBMS_OUTPUT.PUT_LINE(
-            'ERROR: CASCADE no produjo el resultado esperado.'
-        );
-    END IF;
+-- CASO 3: misma seleccion dos veces en el partido (debe fallar por UQ_PP_PARTIDO_SELECCION).
+-- INSERT INTO participacion_partido (id_participacion, id_partido, id_seleccion, condicion, goles_marcados, resultado)
+-- VALUES (9900004, 990000, 101, 'VISITANTE', 0, 'EMPATO');
 
-    -- Relación NO ACTION implícita (equivalente a RESTRICT):
-    -- una selección con historial no se puede eliminar.
-    SAVEPOINT prueba_restrict_seleccion;
-    v_rechazada := FALSE;
-    BEGIN
-        DELETE FROM seleccion
-         WHERE id_seleccion = 1001
-           AND id_edicion = 1;
-    EXCEPTION
-        WHEN OTHERS THEN
-            v_rechazada := TRUE;
-            v_codigo_error := SQLCODE;
-            v_mensaje_error := SQLERRM;
-            ROLLBACK TO prueba_restrict_seleccion;
-            IF v_codigo_error <> -2292 THEN
-                RAISE;
-            END IF;
-            DBMS_OUTPUT.PUT_LINE(
-                'NO ACTION/RESTRICT verificado: selección protegida: '
-                || v_mensaje_error
-            );
-    END;
-    IF NOT v_rechazada THEN
-        ROLLBACK TO prueba_restrict_seleccion;
-        RAISE_APPLICATION_ERROR(
-            -20907,
-            'La selección con historial fue eliminada.'
-        );
-    END IF;
+-- CASO 4: asistencia negativa (debe fallar por CK_PARTIDO_ASISTENCIA).
+-- UPDATE partido SET asistencia_registrada = -5 WHERE id_partido = 990000;
 
-    COMMIT;
-    DBMS_OUTPUT.PUT_LINE('Pruebas DML finalizadas y transacción confirmada.');
-EXCEPTION
-    WHEN OTHERS THEN
-        ROLLBACK;
-        DBMS_OUTPUT.PUT_LINE('Pruebas DML canceladas: ' || SQLERRM);
-        RAISE;
-END;
-/
+-- CASO 5: fase no permitida (debe fallar por CK_PARTIDO_FASE).
+-- UPDATE partido SET fase = 'FASE INVENTADA' WHERE id_partido = 990000;
+
+-- CASO 6: seleccion inexistente (debe fallar por FK_PP_SELECCION).
+-- INSERT INTO participacion_partido (id_participacion, id_partido, id_seleccion, condicion, goles_marcados, resultado)
+-- VALUES (9900005, 990000, 999999, 'VISITANTE', 0, 'EMPATO');
+
+------------------------------------------------------------------------
+-- PRUEBA ON DELETE CASCADE: al borrar el partido se borran sus hijas.
+------------------------------------------------------------------------
+
+DELETE FROM partido WHERE id_partido = 990000;
+
+-- Verificacion: debe dar cero filas (las 2 participaciones se borraron en cascada).
+SELECT COUNT(*) AS participaciones_restantes
+  FROM participacion_partido
+ WHERE id_partido = 990000;
+
+------------------------------------------------------------------------
+-- PRUEBA NO ACTION (comportamiento por defecto): una seleccion con
+-- historial no se puede borrar. La siguiente sentencia debe fallar
+-- con ORA-02292 (hija existente). Se deja comentada para no detener el script.
+------------------------------------------------------------------------
+
+-- DELETE FROM seleccion WHERE id_seleccion = 101;
+
+-- Verificacion: la seleccion 101 sigue existiendo.
+SELECT id_seleccion, pais FROM seleccion WHERE id_seleccion = 101;
+
+COMMIT;

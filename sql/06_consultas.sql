@@ -1,25 +1,24 @@
--- Entrega 1 - Las quince consultas solicitadas
--- Dataset de referencia: edición con anio = 2026.
--- Ejecutar después de sql/02_datos_prueba.sql y sql/03_vistas.sql.
+-- Entrega 1 BASICA - Las quince consultas solicitadas
+-- Solo usa: SELECT, JOINS (JOIN y LEFT JOIN), WHERE, GROUP BY, HAVING,
+-- ORDER BY, agregados (COUNT, SUM, AVG, MAX, MIN) y subconsultas
+-- (IN, EXISTS, NOT EXISTS, = y > con SELECT). Reutiliza las 5 vistas.
+-- NO usa WITH, ni funciones de ventana (DENSE_RANK/OVER), ni PL/SQL.
+-- Dataset de referencia: edicion con anio = 2026.
 
 SET DEFINE OFF;
 
 ------------------------------------------------------------------------
--- 1. Top 5 selecciones con más goles marcados en 2026.
+-- 1. Top 5 selecciones con mas goles en 2026 (ORDER BY + limite basico).
 ------------------------------------------------------------------------
 
 SELECT anio, id_seleccion, pais, confederacion, goles_marcados
-  FROM (
-        SELECT anio, id_seleccion, pais, confederacion, goles_marcados
-          FROM vw_goleadores_sel
-         WHERE anio = 2026
-         ORDER BY goles_marcados DESC, pais
-       )
- WHERE ROWNUM <= 5;
+  FROM vw_goleadores_sel
+ WHERE anio = 2026
+ ORDER BY goles_marcados DESC, pais
+ FETCH FIRST 5 ROWS ONLY;
 
 ------------------------------------------------------------------------
--- 2. Porcentaje de ocupación estimado por estadio.
--- Reutiliza VW_OCUPACION_ESTADIO.
+-- 2. Porcentaje de ocupacion por estadio (reutiliza la vista).
 ------------------------------------------------------------------------
 
 SELECT anio, id_estadio, estadio, ciudad, capacidad,
@@ -29,8 +28,7 @@ SELECT anio, id_estadio, estadio, ciudad, capacidad,
  ORDER BY ocupacion_promedio_pct DESC, estadio;
 
 ------------------------------------------------------------------------
--- 3. Selecciones con mayor diferencia de gol.
--- Subconsulta no correlacionada para obtener el máximo.
+-- 3. Selecciones con mayor diferencia de gol (subconsulta no correlacionada con MAX).
 ------------------------------------------------------------------------
 
 SELECT t.anio, t.id_seleccion, t.pais, t.goles_favor,
@@ -45,7 +43,7 @@ SELECT t.anio, t.id_seleccion, t.pais, t.goles_favor,
  ORDER BY t.pais;
 
 ------------------------------------------------------------------------
--- 4. Cantidad de partidos por fase.
+-- 4. Cantidad de partidos por fase (JOIN + GROUP BY).
 ------------------------------------------------------------------------
 
 SELECT e.anio, p.fase, COUNT(*) AS cantidad_partidos
@@ -66,36 +64,39 @@ SELECT e.anio, p.fase, COUNT(*) AS cantidad_partidos
        END;
 
 ------------------------------------------------------------------------
--- 5. Para cada edición, estadio(s) con mayor cantidad de partidos.
--- LEFT JOIN conserva estadios sin partidos.
+-- 5. Por cada edicion, estadio(s) con mayor cantidad de partidos.
+-- Version basica: subconsulta en el FROM + MAX correlacionado (sin WITH ni ventana).
 ------------------------------------------------------------------------
 
-WITH conteos AS (
-    SELECT e.anio, e.id_edicion, es.id_estadio, es.nombre AS estadio,
-           COUNT(p.id_partido) AS partidos_albergados
-      FROM edicion_mundial e
-      JOIN estadio es
-        ON es.id_edicion = e.id_edicion
-      LEFT JOIN partido p
-        ON p.id_estadio = es.id_estadio
-       AND p.id_edicion = es.id_edicion
-     GROUP BY e.anio, e.id_edicion, es.id_estadio, es.nombre
-),
-ranking AS (
-    SELECT c.*,
-           DENSE_RANK() OVER (
-               PARTITION BY c.id_edicion
-               ORDER BY c.partidos_albergados DESC
-           ) AS posicion
-      FROM conteos c
-)
-SELECT anio, id_edicion, id_estadio, estadio, partidos_albergados
-  FROM ranking
- WHERE posicion = 1
- ORDER BY anio, estadio;
+SELECT c.anio, c.id_estadio, c.estadio, c.partidos_albergados
+  FROM (
+        SELECT e.anio, es.id_estadio, es.nombre AS estadio,
+               COUNT(p.id_partido) AS partidos_albergados
+          FROM edicion_mundial e
+          JOIN estadio es
+            ON es.id_edicion = e.id_edicion
+          LEFT JOIN partido p
+            ON p.id_estadio = es.id_estadio
+         GROUP BY e.anio, es.id_estadio, es.nombre
+       ) c
+ WHERE c.partidos_albergados = (
+        SELECT MAX(c2.partidos_albergados)
+          FROM (
+                SELECT e2.anio, es2.id_estadio,
+                       COUNT(p2.id_partido) AS partidos_albergados
+                  FROM edicion_mundial e2
+                  JOIN estadio es2
+                    ON es2.id_edicion = e2.id_edicion
+                  LEFT JOIN partido p2
+                    ON p2.id_estadio = es2.id_estadio
+                 GROUP BY e2.anio, es2.id_estadio
+               ) c2
+         WHERE c2.anio = c.anio
+       )
+ ORDER BY c.anio, c.estadio;
 
 ------------------------------------------------------------------------
--- 6. Patrones atípicos: 0-0 o al menos ocho goles combinados.
+-- 6. Patrones atipicos: 0-0 o al menos ocho goles (reutiliza la vista).
 ------------------------------------------------------------------------
 
 SELECT id_partido, anio, fase, estadio, seleccion_local,
@@ -106,8 +107,7 @@ SELECT id_partido, anio, fase, estadio, seleccion_local,
  ORDER BY goles_totales DESC, id_partido;
 
 ------------------------------------------------------------------------
--- 7. Selecciones invictas.
--- Incluye NOT EXISTS y EXISTS para no considerar selecciones sin partidos.
+-- 7. Selecciones invictas (EXISTS + NOT EXISTS, subconsultas correlacionadas).
 ------------------------------------------------------------------------
 
 SELECT e.anio, s.id_seleccion, s.pais, s.confederacion
@@ -120,9 +120,7 @@ SELECT e.anio, s.id_seleccion, s.pais, s.confederacion
           FROM participacion_partido pp
           JOIN partido p
             ON p.id_partido = pp.id_partido
-           AND p.id_edicion = pp.id_edicion
          WHERE pp.id_seleccion = s.id_seleccion
-           AND pp.id_edicion = s.id_edicion
            AND p.estado_partido = 'FINALIZADO'
        )
    AND NOT EXISTS (
@@ -130,17 +128,14 @@ SELECT e.anio, s.id_seleccion, s.pais, s.confederacion
           FROM participacion_partido pp
           JOIN partido p
             ON p.id_partido = pp.id_partido
-           AND p.id_edicion = pp.id_edicion
          WHERE pp.id_seleccion = s.id_seleccion
-           AND pp.id_edicion = s.id_edicion
            AND p.estado_partido = 'FINALIZADO'
            AND pp.resultado = 'PERDIO'
        )
  ORDER BY s.pais;
 
 ------------------------------------------------------------------------
--- 8. Estadios por encima del promedio general de ocupación.
--- La subconsulta referencia el año de la fila exterior.
+-- 8. Estadios por encima del promedio de ocupacion (subconsulta con AVG).
 ------------------------------------------------------------------------
 
 SELECT v.anio, v.id_estadio, v.estadio, v.ciudad,
@@ -156,49 +151,40 @@ SELECT v.anio, v.id_estadio, v.estadio, v.ciudad,
 
 ------------------------------------------------------------------------
 -- 9. Partido(s) con mayor marcador combinado por estadio.
+-- Version basica: subconsulta correlacionada con MAX (sin ventana).
 ------------------------------------------------------------------------
 
-WITH marcadores AS (
-    SELECT v.id_estadio, v.estadio, v.anio, v.id_partido, v.fase,
-           v.seleccion_local, v.seleccion_visitante,
-           v.goles_local, v.goles_visitante,
-           v.goles_local + v.goles_visitante AS goles_totales
-      FROM vw_marcador_partidos v
-     WHERE v.anio = 2026
-       AND v.estado_partido = 'FINALIZADO'
-),
-ranking AS (
-    SELECT m.*,
-           DENSE_RANK() OVER (
-               PARTITION BY m.id_estadio
-               ORDER BY m.goles_totales DESC
-           ) AS posicion
-      FROM marcadores m
-)
-SELECT id_estadio, estadio, anio, id_partido, fase,
-       seleccion_local, seleccion_visitante,
-       goles_local, goles_visitante, goles_totales
-  FROM ranking
- WHERE posicion = 1
- ORDER BY estadio, id_partido;
+SELECT v.id_estadio, v.estadio, v.anio, v.id_partido, v.fase,
+       v.seleccion_local, v.seleccion_visitante,
+       v.goles_local, v.goles_visitante,
+       v.goles_local + v.goles_visitante AS goles_totales
+  FROM vw_marcador_partidos v
+ WHERE v.anio = 2026
+   AND v.estado_partido = 'FINALIZADO'
+   AND (v.goles_local + v.goles_visitante) = (
+        SELECT MAX(v2.goles_local + v2.goles_visitante)
+          FROM vw_marcador_partidos v2
+         WHERE v2.anio = 2026
+           AND v2.estado_partido = 'FINALIZADO'
+           AND v2.id_estadio = v.id_estadio
+       )
+ ORDER BY v.estadio, v.id_partido;
 
 ------------------------------------------------------------------------
--- 10. Selecciones que jugaron todos sus partidos como LOCAL, o ninguno.
+-- 10. Selecciones que jugaron todos sus partidos como LOCAL, o ninguno
+-- (GROUP BY + HAVING con SUM y CASE, agregacion basica).
 ------------------------------------------------------------------------
 
 SELECT e.anio, s.id_seleccion, s.pais,
        COUNT(*) AS partidos_jugados,
-       SUM(CASE WHEN pp.condicion = 'LOCAL' THEN 1 ELSE 0 END)
-           AS partidos_como_local
+       SUM(CASE WHEN pp.condicion = 'LOCAL' THEN 1 ELSE 0 END) AS partidos_como_local
   FROM seleccion s
   JOIN edicion_mundial e
     ON e.id_edicion = s.id_edicion
   JOIN participacion_partido pp
     ON pp.id_seleccion = s.id_seleccion
-   AND pp.id_edicion = s.id_edicion
   JOIN partido p
     ON p.id_partido = pp.id_partido
-   AND p.id_edicion = pp.id_edicion
    AND p.estado_partido = 'FINALIZADO'
  WHERE e.anio = 2026
  GROUP BY e.anio, s.id_seleccion, s.pais
@@ -207,7 +193,7 @@ HAVING SUM(CASE WHEN pp.condicion = 'LOCAL' THEN 1 ELSE 0 END) = COUNT(*)
  ORDER BY s.pais;
 
 ------------------------------------------------------------------------
--- 11. Selecciones por encima del promedio general de diferencia de gol.
+-- 11. Selecciones por encima del promedio de diferencia de gol.
 ------------------------------------------------------------------------
 
 SELECT t.anio, t.id_seleccion, t.pais, t.diferencia_goles
@@ -221,36 +207,26 @@ SELECT t.anio, t.id_seleccion, t.pais, t.diferencia_goles
  ORDER BY t.diferencia_goles DESC, t.pais;
 
 ------------------------------------------------------------------------
--- 12. Comparación de goles en fase de grupos frente a fase eliminatoria.
+-- 12. Goles en fase de grupos frente a fase eliminatoria (SUM con CASE).
 ------------------------------------------------------------------------
 
 SELECT e.anio, s.id_seleccion, s.pais,
-       SUM(CASE
-               WHEN p.fase = 'FASE DE GRUPOS'
-               THEN pp.goles_marcados
-               ELSE 0
-           END) AS goles_fase_grupos,
-       SUM(CASE
-               WHEN p.fase <> 'FASE DE GRUPOS'
-               THEN pp.goles_marcados
-               ELSE 0
-           END) AS goles_fase_eliminatoria
+       SUM(CASE WHEN p.fase = 'FASE DE GRUPOS' THEN pp.goles_marcados ELSE 0 END) AS goles_fase_grupos,
+       SUM(CASE WHEN p.fase <> 'FASE DE GRUPOS' THEN pp.goles_marcados ELSE 0 END) AS goles_fase_eliminatoria
   FROM seleccion s
   JOIN edicion_mundial e
     ON e.id_edicion = s.id_edicion
   JOIN participacion_partido pp
     ON pp.id_seleccion = s.id_seleccion
-   AND pp.id_edicion = s.id_edicion
   JOIN partido p
     ON p.id_partido = pp.id_partido
-   AND p.id_edicion = pp.id_edicion
  WHERE e.anio = 2026
    AND p.estado_partido = 'FINALIZADO'
  GROUP BY e.anio, s.id_seleccion, s.pais
  ORDER BY s.pais;
 
 ------------------------------------------------------------------------
--- 13. Estadios con partidos en más de una fase.
+-- 13. Estadios con partidos en mas de una fase (HAVING con COUNT DISTINCT).
 ------------------------------------------------------------------------
 
 SELECT e.anio, es.id_estadio, es.nombre AS estadio,
@@ -260,15 +236,14 @@ SELECT e.anio, es.id_estadio, es.nombre AS estadio,
     ON es.id_edicion = e.id_edicion
   JOIN partido p
     ON p.id_estadio = es.id_estadio
-   AND p.id_edicion = es.id_edicion
  WHERE e.anio = 2026
  GROUP BY e.anio, es.id_estadio, es.nombre
 HAVING COUNT(DISTINCT p.fase) > 1
  ORDER BY fases_distintas DESC, estadio;
 
 ------------------------------------------------------------------------
--- 14. Verificación de participaciones duplicadas.
--- Debe devolver cero filas porque existe UNIQUE(id_partido,id_seleccion).
+-- 14. Verificacion de participaciones duplicadas (debe dar cero filas
+-- por el UNIQUE(id_partido,id_seleccion)).
 ------------------------------------------------------------------------
 
 SELECT id_partido, id_seleccion, COUNT(*) AS cantidad
@@ -278,23 +253,19 @@ HAVING COUNT(*) > 1
  ORDER BY id_partido, id_seleccion;
 
 ------------------------------------------------------------------------
--- 15. Selección líder de cada edición según puntos y desempates.
--- En el modelo inicial no existe GRUPO; por eso se informa el líder por edición.
+-- 15. Seleccion lider de cada edicion por puntos (version basica).
+-- Simplificacion declarada: sin funciones de ventana, el lider es quien
+-- iguala el MAX de puntos de su edicion. El desempate por diferencia y
+-- goles se muestra en el ORDER BY para lectura, no como filtro.
 -- Reutiliza VW_TABLA_POSICIONES.
 ------------------------------------------------------------------------
 
-WITH ranking AS (
-    SELECT v.*,
-           DENSE_RANK() OVER (
-               PARTITION BY v.anio
-               ORDER BY v.puntos DESC,
-                        v.diferencia_goles DESC,
-                        v.goles_favor DESC
-           ) AS posicion
-      FROM vw_tabla_posiciones v
-)
-SELECT anio, id_seleccion, pais, puntos, victorias, empates,
-       derrotas, goles_favor, goles_contra, diferencia_goles
-  FROM ranking
- WHERE posicion = 1
- ORDER BY anio, pais;
+SELECT v.anio, v.id_seleccion, v.pais, v.puntos, v.victorias, v.empates,
+       v.derrotas, v.goles_favor, v.goles_contra, v.diferencia_goles
+  FROM vw_tabla_posiciones v
+ WHERE v.puntos = (
+        SELECT MAX(v2.puntos)
+          FROM vw_tabla_posiciones v2
+         WHERE v2.anio = v.anio
+       )
+ ORDER BY v.anio, v.diferencia_goles DESC, v.goles_favor DESC, v.pais;
