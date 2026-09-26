@@ -219,3 +219,5 @@ operaciones básicas, reportes y coherencia de datos (sin funciones ni triggers)
 Abrir `app/index.html` en un navegador moderno. La demostración funciona sin instalar
 dependencias y conserva los cambios en `localStorage`; `app/README.md` documenta la
 correspondencia con las vistas Oracle y las operaciones del script 10.
+#   p r o y e c t o - f i f a - e n t r e g a - 1  
+ 
